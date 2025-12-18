@@ -6,7 +6,7 @@
 4. 高パワー帯のピークと低パワー帯のピークを対応づける.
 5. 対応づけられた応答それぞれについて, 近くにある応答同士をグループ化する.
 6. 各応答グループについて, 最大スコアの応答のみを残す.
-7. 残った応答のスコア上位4つを真の応答とみなす.
+7. 残った応答のスコア上位`num_resonators`個を真の応答とみなす.
 
 ## 応答スコア
 
@@ -27,7 +27,7 @@
 - `find_peaks_conf_*.smooth_sigma`: 平滑化の強さ
 - `find_peaks_conf_*.fp_conditions.distance`: 検出するピーク同士の最低距離(単位はxの1目盛)
 - `find_peaks_conf_*.fp_conditions.prominence`: 検出するピークの最低突出度. この値が**低い**ほど敏感にピークを検出する
-- `group_peaks_conf`: 高パワー帯のピークのグルーピングに使うパラメータ
+- `group_peaks_conf`: 高パワー帯のピークのグループ化に使うパラメータ
 - `group_peaks_conf.x_backward_max`: ピークが逆側に曲がっていてもこの値までは同じグループとみなす(単位はxの1目盛)
 - `group_peaks_conf.x_distance_max`: yの1目盛につきこの値以内の傾きなら同じグループとみなす(単位はxの1目盛)
 - `compose_resonances_conf`: 高パワー帯のピークと低パワー帯のピークの対応づけに使うパラメータ
