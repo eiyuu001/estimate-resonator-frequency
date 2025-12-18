@@ -1,0 +1,37 @@
+{
+  "remove_false_spike": [
+    ["9.998", "10.000"],
+    ["10.248", "10.250"],
+    ["10.498", "10.500"]
+  ],
+  "estimate_resonator_frequency": {
+    "num_resonators": 4,
+    "high_power_min": -20.0,
+    "high_power_max": 0.0,
+    "low_power": -30.0,
+    "find_peaks_conf_high": {
+      "smooth_sigma": 1.0,
+      "fp_conditions": {
+        "distance": 10,
+        "prominence": 0.35
+      }
+    },
+    "find_peaks_conf_low": {
+      "smooth_sigma": 1.0,
+      "fp_conditions": {
+        "distance": 5,
+        "prominence": 0.05
+      }
+    },
+    "group_peaks_conf": {
+      "x_backward_max": 2,
+      "x_distance_max": 25
+    },
+    "compose_resonances_conf": {
+      "x_distance_max": 25
+    },
+    "group_resonances_conf": {
+      "x_distance_max": 25
+    }
+  }
+}
