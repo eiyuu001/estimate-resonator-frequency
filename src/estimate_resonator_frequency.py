@@ -50,7 +50,20 @@ class Resonance:
 
     @functools.cached_property
     def score(self):
-        return (self.high_power_grad, self.low_power_prominence)
+        return (
+            self.has_high_power_peaks,
+            self.has_low_power_peak,
+            self.high_power_grad,
+            self.low_power_prominence,
+        )
+
+    @functools.cached_property
+    def has_high_power_peaks(self):
+        return bool(self.high_power_peaks)
+
+    @functools.cached_property
+    def has_low_power_peak(self):
+        return bool(self.low_power_peak)
 
     @functools.cached_property
     def high_power_grad(self):
