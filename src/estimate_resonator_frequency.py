@@ -83,7 +83,12 @@ class Resonance:
         if p0.x == p1.x:
             return float("-inf")
 
-        return float((p1.y - p0.y) / (p1.x - p0.x))
+        grad = float((p1.y - p0.y) / (p1.x - p0.x))
+
+        if grad > 0:
+            return float("-inf")
+
+        return grad
 
 
 def find_peaks(
