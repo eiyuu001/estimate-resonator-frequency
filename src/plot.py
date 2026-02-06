@@ -90,7 +90,9 @@ def process_data(conf, data, idx):
                     y=ys,
                     mode='markers',
                     marker=dict(
-                        color=px.colors.qualitative.Plotly[i],
+                        color=px.colors.qualitative.Plotly[
+                            i % len(px.colors.qualitative.Plotly)
+                        ],
                         size=8,
                         symbol='x',
                     ),
