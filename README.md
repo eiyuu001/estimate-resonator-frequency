@@ -34,5 +34,6 @@
 - `group_peaks_conf.x_distance_max`: yの1目盛につきこの値以内の傾きなら同じグループとみなす(単位はxの1目盛)
 - `compose_resonances_conf`: 高パワー帯のピークと低パワー帯のピークの対応づけに使うパラメータ
 - `compose_resonances.x_distance_max`: 高パワー帯の一番下のピークと低パワー帯のピークについて, yの1目盛につきこの値以内の傾きなら同じ応答のピークと見做して対応づけを行う(単位はxの1目盛)
+- `compose_resonances_conf.x_backward_max`: 低パワー帯のピークの周波数 < 高パワー帯の一番下のピークの周波数 だったとしても, その差がこの値以内なら同じ応答のピークと見做して対応づけを行う(単位はxの1目盛)
 - `group_resonances_conf`: 対応づけ後の応答同士のグループ化に使うパラメータ
 - `group_resonances_conf.x_distance_max`: この値以内にある応答同士を同グループとみなす(単位はxの1目盛)

@@ -177,47 +177,39 @@ def compose_resonances(
     peak_groups: Sequence[PeakGroup],
     low_power_peaks: Sequence[Peak],
     x_distance_max: int,
+    x_backward_max: int,
 ):
     arr_high = [(peak_group, 0) for peak_group in peak_groups]
     arr_low = [(peak, 1) for peak in low_power_peaks]
 
     arr = sorted(arr_high + arr_low, key=lambda item: (item[0].x, item[1]))
-    arr = [item[0] for item in arr]
+    arr = [item[0] for item in arr] + [None]
 
     resonances: Sequence[Resonance] = []
+    skip = False
 
     for p0, p1 in zip(arr[:-1], arr[1:]):
+        if skip:
+            skip = False
+            continue
+
         match p0, p1:
-            case Peak(), _:
-                if (
-                    resonances
-                    and (_peak := resonances[-1].low_power_peak)
-                    and p0.x == _peak.x
-                ):
-                    pass
+            case Peak(), PeakGroup():
+                if p1.x - p0.x <= x_backward_max:
+                    resonances.append(Resonance(p1, p0))
+                    skip = True
                 else:
                     resonances.append(Resonance(None, p0))
             case PeakGroup(), Peak():
                 if p1.x - p0.x < (p0.y - p1.y) * x_distance_max:
                     resonances.append(Resonance(p0, p1))
+                    skip = True
                 else:
                     resonances.append(Resonance(p0, None))
-            case PeakGroup(), PeakGroup():
+            case Peak(), Peak() | None:
+                resonances.append(Resonance(None, p0))
+            case PeakGroup(), PeakGroup() | None:
                 resonances.append(Resonance(p0, None))
-
-    last = arr[-1]
-
-    if type(last) == PeakGroup:
-        resonances.append(Resonance(last, None))
-    elif type(last) == Peak:
-        if (
-            resonances
-            and (_peak := resonances[-1].low_power_peak)
-            and last.x == _peak.x
-        ):
-            pass
-        else:
-            resonances.append(Resonance(None, last))
 
     return resonances
 

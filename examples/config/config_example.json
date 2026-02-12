@@ -28,6 +28,7 @@
       "x_distance_max": 25
     },
     "compose_resonances_conf": {
+      "x_backward_max": 2,
       "x_distance_max": 25
     },
     "group_resonances_conf": {
