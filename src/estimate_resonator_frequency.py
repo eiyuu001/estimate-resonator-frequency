@@ -54,7 +54,7 @@ class Resonance:
             self.has_high_power_peaks,
             self.has_low_power_peak,
             self.high_power_grad,
-            self.low_power_prominence,
+            self.max_prominence,
         )
 
     @functools.cached_property
@@ -88,8 +88,11 @@ class Resonance:
         return peaks
 
     @property
-    def low_power_prominence(self):
-        return self.low_power_peak.prominence if self.low_power_peak else 0.0
+    def max_prominence(self):
+        if not self.peaks:
+            return 0.0
+
+        return max(peak.prominence for peak in self.peaks)
 
     @staticmethod
     def compute_grad(p0: Peak, p1: Peak):
