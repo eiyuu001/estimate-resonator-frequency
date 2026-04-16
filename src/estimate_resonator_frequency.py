@@ -8,6 +8,7 @@ from typing import (
 from scipy.signal import find_peaks as _find_peaks
 from scipy.ndimage import convolve1d
 import numpy as np
+from low_power_estimator import LowPowerEstimator
 
 
 class Peak(NamedTuple):
@@ -247,9 +248,9 @@ def estimate_resonator_frequency(
     ys: Sequence[float],
     zs: Sequence[Sequence[float]],
     *,
+    low_power_estimator: LowPowerEstimator,
     high_power_min: float,
     high_power_max: float,
-    low_power: float,
     num_resonators: int,
     find_peaks_conf_high: dict,
     find_peaks_conf_low: dict,
@@ -259,6 +260,8 @@ def estimate_resonator_frequency(
 ):
     y_idx_high_min = arg_closest(ys, high_power_min)
     y_idx_high_max = arg_closest(ys, high_power_max)
+
+    low_power = low_power_estimator.estimate_low_power(ys, zs)
     y_idx_low = arg_closest(ys, low_power)
 
     if y_idx_high_min > y_idx_high_max:

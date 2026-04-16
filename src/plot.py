@@ -5,6 +5,7 @@ import plotly.graph_objects as go
 import plotly.express as px
 from remove_false_spike import remove_false_spike
 from estimate_resonator_frequency import estimate_resonator_frequency
+from low_power_estimator import ConfigLowPowerEstimator
 
 
 def simplify_layout(data):
@@ -60,9 +61,15 @@ def process_data(conf, data, idx):
         fig.write_image(output_path)
 
     if 'mark' in phases or 'marked_images' in phases:
+        low_power_estimator = ConfigLowPowerEstimator(
+            conf['estimate_resonator_frequency']['low_power']
+        )
+        del conf['estimate_resonator_frequency']['low_power']
+
         resonances, rests = estimate_resonator_frequency(
             data['data'][0]['y'],
             data['data'][0]['z'],
+            low_power_estimator=low_power_estimator,
             **conf['estimate_resonator_frequency'],
         )
 

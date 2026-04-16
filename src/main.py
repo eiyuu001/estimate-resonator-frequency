@@ -2,6 +2,7 @@ import argparse
 import json
 from remove_false_spike import remove_false_spike
 from estimate_resonator_frequency import estimate_resonator_frequency
+from low_power_estimator import ConfigLowPowerEstimator
 
 
 def main():
@@ -14,6 +15,11 @@ def main():
     with open(args.conf_file) as f:
         conf = json.load(f)
 
+    low_power_estimator = ConfigLowPowerEstimator(
+        conf['estimate_resonator_frequency']['low_power']
+    )
+    del conf['estimate_resonator_frequency']['low_power']
+
     with open(args.input_file) as f:
         data = json.load(f)
 
@@ -23,6 +29,7 @@ def main():
     resonances, _ = estimate_resonator_frequency(
         data['data'][0]['y'],
         data['data'][0]['z'],
+        low_power_estimator=low_power_estimator,
         **conf['estimate_resonator_frequency'],
     )
 
