@@ -1,8 +1,9 @@
 import argparse
 import json
+import os
 from remove_false_spike import remove_false_spike
 from estimate_resonator_frequency import estimate_resonator_frequency
-from low_power_estimator import ConfigLowPowerEstimator
+from config import create_bare_shift_boundary_estimator
 
 
 def main():
@@ -10,15 +11,12 @@ def main():
     parser.add_argument('-c', '--conf-file', required=True)
     parser.add_argument('-f', '--input-file', required=True)
     parser.add_argument('--mux', type=int, required=True)
+    parser.add_argument('--image-dir')
+    parser.add_argument('--debug', action='store_true')
     args = parser.parse_args()
 
     with open(args.conf_file) as f:
         conf = json.load(f)
-
-    low_power_estimator = ConfigLowPowerEstimator(
-        conf['estimate_resonator_frequency']['low_power']
-    )
-    del conf['estimate_resonator_frequency']['low_power']
 
     with open(args.input_file) as f:
         data = json.load(f)
@@ -26,10 +24,33 @@ def main():
     for item in conf['remove_false_spike']:
         data = remove_false_spike(data, *item)
 
+    if args.image_dir is not None:
+        mux = data['layout']['title']['text'][-5:]
+        image_path_prefix = os.path.join(args.image_dir, f'{mux}_2_')
+    else:
+        image_path_prefix = None
+
+    bare_shift_boundary_estimator = create_bare_shift_boundary_estimator(
+        conf, image_path_prefix
+    )
+
+    low_power, high_power_min, high_power_max = (
+        bare_shift_boundary_estimator.estimate_bare_shift_boundary(
+            data['data'][0]['x'],
+            data['data'][0]['y'],
+            data['data'][0]['z'],
+        )
+    )
+
+    if high_power_min is None or high_power_max is None:
+        raise ValueError
+
     resonances, _ = estimate_resonator_frequency(
         data['data'][0]['y'],
         data['data'][0]['z'],
-        low_power_estimator=low_power_estimator,
+        high_power_min=high_power_min,
+        high_power_max=high_power_max,
+        low_power=low_power,
         **conf['estimate_resonator_frequency'],
     )
 
@@ -53,7 +74,19 @@ def main():
             for i, resonance in enumerate(resonances)
         ]
 
-    print(json.dumps(result))
+    if args.debug:
+        print(
+            json.dumps(
+                {
+                    'result': result,
+                    'low_power': low_power,
+                    'high_power_min': high_power_min,
+                    'high_power_max': high_power_max,
+                }
+            )
+        )
+    else:
+        print(json.dumps(result))
 
 
 if __name__ == '__main__':

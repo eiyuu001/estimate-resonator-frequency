@@ -1,14 +1,15 @@
 {
   "remove_false_spike": [
-    ["9.998", "10.000"],
-    ["10.248", "10.250"],
-    ["10.498", "10.500"]
+    ["5.998", "6.000"]
   ],
+  "bare_shift_boundary_estimator": {
+    "type": "high_frequency_strength",
+    "args": {
+      "strength_limit": 4.0
+    }
+  },
   "estimate_resonator_frequency": {
     "num_resonators": 4,
-    "high_power_min": -20.0,
-    "high_power_max": 0.0,
-    "low_power": -30.0,
     "find_peaks_conf_high": {
       "smooth_sigma": 1.0,
       "fp_conditions": {
