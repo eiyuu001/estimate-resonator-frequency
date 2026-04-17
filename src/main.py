@@ -4,6 +4,7 @@ import os
 from remove_false_spike import remove_false_spike
 from estimate_resonator_frequency import estimate_resonator_frequency
 from config import create_bare_shift_boundary_estimator
+from plot import output_images
 
 
 def main():
@@ -12,6 +13,7 @@ def main():
     parser.add_argument('-f', '--input-file', required=True)
     parser.add_argument('--mux', type=int, required=True)
     parser.add_argument('--image-dir')
+    parser.add_argument('--plot', action='store_true')
     parser.add_argument('--debug', action='store_true')
     args = parser.parse_args()
 
@@ -26,12 +28,14 @@ def main():
 
     if args.image_dir is not None:
         mux = data['layout']['title']['text'][-5:]
-        image_path_prefix = os.path.join(args.image_dir, f'{mux}_2_')
+        image_path_prefix_fft = os.path.join(args.image_dir, f'{mux}_2_')
+        image_path_prefix_spectroscopy = os.path.join(args.image_dir, f'{mux}_')
     else:
-        image_path_prefix = None
+        image_path_prefix_fft = None
+        image_path_prefix_spectroscopy = None
 
     bare_shift_boundary_estimator = create_bare_shift_boundary_estimator(
-        conf, image_path_prefix
+        conf, image_path_prefix_fft
     )
 
     low_power, high_power_min, high_power_max = (
@@ -45,7 +49,7 @@ def main():
     if high_power_min is None or high_power_max is None:
         raise ValueError
 
-    resonances, _ = estimate_resonator_frequency(
+    resonances, rests = estimate_resonator_frequency(
         data['data'][0]['y'],
         data['data'][0]['z'],
         high_power_min=high_power_min,
@@ -87,6 +91,11 @@ def main():
         )
     else:
         print(json.dumps(result))
+
+    if image_path_prefix_spectroscopy or args.plot:
+        output_images(
+            data, resonances, rests, image_path_prefix_spectroscopy, args.plot
+        )
 
 
 if __name__ == '__main__':
