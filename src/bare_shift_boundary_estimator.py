@@ -9,6 +9,13 @@ from scipy.fft import fft, fftfreq
 
 
 @dataclass(frozen=True)
+class BareShiftBoundary:
+    low_power: float
+    high_power_min: float | None
+    high_power_max: float | None
+
+
+@dataclass(frozen=True)
 class BareShiftDebugOptions:
     artifact_prefix: str | None = None
 
@@ -23,7 +30,7 @@ class BareShiftBoundaryEstimator(ABC):
         zs: Sequence[Sequence[float]],
         *,
         debug: BareShiftDebugOptions | None = None,
-    ) -> tuple[float, float | None, float | None]:
+    ) -> BareShiftBoundary:
         pass
 
 
@@ -41,7 +48,11 @@ class ConfigBareShiftBoundaryEstimator(BareShiftBoundaryEstimator):
         *,
         debug: BareShiftDebugOptions | None = None,
     ):
-        return self.low_power, self.high_power_min, self.high_power_max
+        return BareShiftBoundary(
+            low_power=self.low_power,
+            high_power_min=self.high_power_min,
+            high_power_max=self.high_power_max,
+        )
 
 
 @dataclass(frozen=True)
@@ -68,9 +79,17 @@ class HighFrequencyStrengthBareShiftBoundaryEstimator(BareShiftBoundaryEstimator
             self.plot_high_frequency_strength(debug.artifact_prefix, high_freq)
 
         if bare_shift_boundary + 1 < len(ys):
-            return ys[bare_shift_boundary], ys[bare_shift_boundary + 1], ys[-1]
+            return BareShiftBoundary(
+                low_power=ys[bare_shift_boundary],
+                high_power_min=ys[bare_shift_boundary + 1],
+                high_power_max=ys[-1],
+            )
         else:
-            return ys[bare_shift_boundary], None, None
+            return BareShiftBoundary(
+                low_power=ys[bare_shift_boundary],
+                high_power_min=None,
+                high_power_max=None,
+            )
 
     def compute_first_local_minimum_index(
         self,

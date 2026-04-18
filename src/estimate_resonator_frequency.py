@@ -289,8 +289,8 @@ def estimate_resonator_frequency(
     ]
 
     ## 3. Integrate the results from 1 and 2, and estimate genuine resonance through scoring.
-    resonances = []
-    rests = []
+    resonances: list[Resonance] = []
+    rests: list[Resonance] = []
 
     for res_group in group_resonances(
         compose_resonances(peak_groups, low_power_peaks, **compose_resonances_conf),
