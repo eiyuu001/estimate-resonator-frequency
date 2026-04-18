@@ -9,15 +9,20 @@ from scipy.fft import fft, fftfreq
 
 
 @dataclass(frozen=True)
-class BareShiftBoundaryEstimator(ABC):
-    image_dir_prefix: str | None
+class BareShiftDebugOptions:
+    artifact_prefix: str | None = None
 
+
+@dataclass(frozen=True)
+class BareShiftBoundaryEstimator(ABC):
     @abstractmethod
     def estimate_bare_shift_boundary(
         self,
         xs: Sequence[float],
         ys: Sequence[float],
         zs: Sequence[Sequence[float]],
+        *,
+        debug: BareShiftDebugOptions | None = None,
     ) -> tuple[float, float | None, float | None]:
         pass
 
@@ -33,6 +38,8 @@ class ConfigBareShiftBoundaryEstimator(BareShiftBoundaryEstimator):
         xs: Sequence[float],
         ys: Sequence[float],
         zs: Sequence[Sequence[float]],
+        *,
+        debug: BareShiftDebugOptions | None = None,
     ):
         return self.low_power, self.high_power_min, self.high_power_max
 
@@ -46,6 +53,8 @@ class HighFrequencyStrengthBareShiftBoundaryEstimator(BareShiftBoundaryEstimator
         xs: Sequence[float],
         ys: Sequence[float],
         zs: Sequence[Sequence[float]],
+        *,
+        debug: BareShiftDebugOptions | None = None,
     ):
         high_freq = np.asarray(
             [self.compute_high_frequency_strength(trace) for trace in zs],
@@ -54,8 +63,9 @@ class HighFrequencyStrengthBareShiftBoundaryEstimator(BareShiftBoundaryEstimator
 
         bare_shift_boundary = self.compute_first_local_minimum_index(high_freq)
 
-        self.plot_fft(xs, zs)
-        self.plot_high_frequency_strength(high_freq)
+        if debug and debug.artifact_prefix:
+            self.plot_fft(debug.artifact_prefix, xs, zs)
+            self.plot_high_frequency_strength(debug.artifact_prefix, high_freq)
 
         if bare_shift_boundary + 1 < len(ys):
             return ys[bare_shift_boundary], ys[bare_shift_boundary + 1], ys[-1]
@@ -80,23 +90,22 @@ class HighFrequencyStrengthBareShiftBoundaryEstimator(BareShiftBoundaryEstimator
         else:
             return len(high_frequency_strength) - 1
 
-    def plot_high_frequency_strength(self, high_freq: npt.NDArray[np.float64]):
-        if self.image_dir_prefix is None:
-            return
-
+    @staticmethod
+    def plot_high_frequency_strength(
+        artifact_prefix: str,
+        high_freq: npt.NDArray[np.float64],
+    ):
         plt.clf()
         plt.plot(high_freq)
         plt.grid()
-        plt.savefig(self.image_dir_prefix + '1_high_frequency_strength.png')
+        plt.savefig(artifact_prefix + '1_high_frequency_strength.png')
 
+    @staticmethod
     def plot_fft(
-        self,
+        artifact_prefix: str,
         xs: Sequence[float],
         zs: Sequence[Sequence[float]],
     ):
-        if self.image_dir_prefix is None:
-            return
-
         plt.clf()
 
         N = len(zs[0])
@@ -111,7 +120,7 @@ class HighFrequencyStrengthBareShiftBoundaryEstimator(BareShiftBoundaryEstimator
 
         plt.grid()
         plt.legend()
-        plt.savefig(self.image_dir_prefix + '0_fft.png')
+        plt.savefig(artifact_prefix + '0_fft.png')
 
     @staticmethod
     def compute_high_frequency_strength(trace: Sequence[float]):

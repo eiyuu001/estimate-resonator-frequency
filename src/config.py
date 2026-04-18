@@ -12,9 +12,7 @@ estimators: dict[str, Type[BareShiftBoundaryEstimator]] = {
 }
 
 
-def create_bare_shift_boundary_estimator(
-    conf, image_dir_prefix=None
-) -> BareShiftBoundaryEstimator:
+def create_bare_shift_boundary_estimator(conf) -> BareShiftBoundaryEstimator:
     cls = estimators[conf['bare_shift_boundary_estimator']['type']]
     args = conf['bare_shift_boundary_estimator']['args']
-    return cls(image_dir_prefix=image_dir_prefix, **args)
+    return cls(**args)
