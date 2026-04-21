@@ -19,6 +19,7 @@ class MainArgs:
     input_file: str
     mux: int
     image_dir: str | None
+    image_prefix: str | None
     plot: bool
     debug: bool
 
@@ -35,6 +36,7 @@ def parse_args():
     parser.add_argument('-f', '--input-file', required=True)
     parser.add_argument('--mux', type=int, required=True)
     parser.add_argument('--image-dir')
+    parser.add_argument('--image-prefix')
     parser.add_argument('--plot', action='store_true')
     parser.add_argument('--debug', action='store_true')
     namespace = parser.parse_args()
@@ -43,6 +45,7 @@ def parse_args():
         input_file=namespace.input_file,
         mux=namespace.mux,
         image_dir=namespace.image_dir,
+        image_prefix=namespace.image_prefix,
         plot=namespace.plot,
         debug=namespace.debug,
     )
@@ -59,8 +62,7 @@ def load_inputs(args: MainArgs) -> tuple[dict[str, Any], dict[str, Any]]:
 
 
 def build_output_paths(
-    data: dict[str, Any],
-    image_dir: str | None,
+    data: dict[str, Any], image_dir: str | None, image_prefix: str | None
 ) -> OutputPaths:
     if image_dir is None:
         return OutputPaths(
@@ -69,9 +71,13 @@ def build_output_paths(
         )
 
     mux = data['layout']['title']['text'][-5:]
+
+    if image_prefix is None:
+        image_prefix = ''
+
     return OutputPaths(
-        bare_shift_artifact_prefix=os.path.join(image_dir, f'{mux}_2_'),
-        spectroscopy_image_prefix=os.path.join(image_dir, f'{mux}_'),
+        bare_shift_artifact_prefix=os.path.join(image_dir, f'{image_prefix}{mux}_2_'),
+        spectroscopy_image_prefix=os.path.join(image_dir, f'{image_prefix}{mux}_'),
     )
 
 
@@ -186,7 +192,7 @@ def maybe_output_spectroscopy_images(
 def main():
     args = parse_args()
     data, conf = load_inputs(args)
-    output_paths = build_output_paths(data, args.image_dir)
+    output_paths = build_output_paths(data, args.image_dir, args.image_prefix)
     data = denoise_data(data, conf)
     boundary = estimate_bare_shift_boundary(
         data, conf, bare_shift_artifact_prefix=output_paths.bare_shift_artifact_prefix
