@@ -108,9 +108,6 @@ def estimate_bare_shift_boundary(
         debug=debug,
     )
 
-    if boundary.high_power_min is None or boundary.high_power_max is None:
-        raise ValueError('failed to estimate bare shift boundary')
-
     return boundary
 
 

@@ -243,29 +243,24 @@ def arg_closest(arr, v):
     return int(np.argmin([abs(x - v) for x in arr]))
 
 
-def estimate_resonator_frequency(
+def detect_high_power_peak_groups(
     ys: Sequence[float],
     zs: Sequence[Sequence[float]],
-    *,
-    high_power_min: float,
-    high_power_max: float,
-    low_power: float,
+    high_power_min: float | None,
+    high_power_max: float | None,
     num_resonators: int,
     find_peaks_conf_high: dict,
-    find_peaks_conf_low: dict,
     group_peaks_conf: dict,
-    compose_resonances_conf: dict,
-    group_resonances_conf: dict,
-):
+) -> Sequence[PeakGroup]:
+    if high_power_min is None or high_power_max is None:
+        return []
+
     y_idx_high_min = arg_closest(ys, high_power_min)
     y_idx_high_max = arg_closest(ys, high_power_max)
-
-    y_idx_low = arg_closest(ys, low_power)
 
     if y_idx_high_min > y_idx_high_max:
         y_idx_high_min, y_idx_high_max = y_idx_high_max, y_idx_high_min
 
-    ## 1. Detect peaks in the high-power region
     high_power_peaks = []
 
     for y_idx in range(y_idx_high_min, y_idx_high_max + 1):
@@ -277,9 +272,38 @@ def estimate_resonator_frequency(
             for peak_idx, prominence in zip(_xs, prominences)
         )
 
-    peak_groups = group_peaks(high_power_peaks, **group_peaks_conf)
+    return group_peaks(high_power_peaks, **group_peaks_conf)
+
+
+def estimate_resonator_frequency(
+    ys: Sequence[float],
+    zs: Sequence[Sequence[float]],
+    *,
+    high_power_min: float | None,
+    high_power_max: float | None,
+    low_power: float,
+    num_resonators: int,
+    find_peaks_conf_high: dict,
+    find_peaks_conf_low: dict,
+    group_peaks_conf: dict,
+    compose_resonances_conf: dict,
+    group_resonances_conf: dict,
+):
+
+    ## 1. Detect peaks in the high-power region
+    high_power_peak_groups = detect_high_power_peak_groups(
+        ys,
+        zs,
+        high_power_min,
+        high_power_max,
+        num_resonators,
+        find_peaks_conf_high,
+        group_peaks_conf,
+    )
 
     ## 2. Detect peaks in the low-power region
+    y_idx_low = arg_closest(ys, low_power)
+
     _xs, prominences = find_peaks(
         trace=zs[y_idx_low], num_resonators=num_resonators * 2, **find_peaks_conf_low
     )
@@ -293,7 +317,9 @@ def estimate_resonator_frequency(
     rests: list[Resonance] = []
 
     for res_group in group_resonances(
-        compose_resonances(peak_groups, low_power_peaks, **compose_resonances_conf),
+        compose_resonances(
+            high_power_peak_groups, low_power_peaks, **compose_resonances_conf
+        ),
         **group_resonances_conf,
     ):
         res_group = sorted(res_group, key=attrgetter("score"), reverse=True)
