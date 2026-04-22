@@ -1,6 +1,7 @@
 {
   "remove_false_spike": [
-    ["5.998", "6.000"]
+    ["5.998", "6.000"],
+    ["6.498", "6.500"]
   ],
   "bare_shift_boundary_estimator": {
     "type": "high_frequency_strength",
