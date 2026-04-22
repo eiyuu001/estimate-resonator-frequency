@@ -3,7 +3,7 @@ import json
 import os
 from dataclasses import dataclass
 from typing import Any
-from bare_shift_boundary_estimator import (
+from bare_shift import (
     BareShiftBoundary,
     BareShiftDebugOptions,
 )

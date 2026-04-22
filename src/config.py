@@ -1,5 +1,5 @@
 from typing import Type
-from bare_shift_boundary_estimator import (
+from bare_shift import (
     BareShiftBoundaryEstimator,
     ConfigBareShiftBoundaryEstimator,
     HighFrequencyStrengthBareShiftBoundaryEstimator,
