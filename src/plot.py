@@ -3,38 +3,47 @@ import plotly.express as px
 
 
 def mark(data, resonances, rests, fig):
-    for i, high_power_peaks in enumerate(
-        sorted(
-            [
-                res.high_power_peaks
-                for res in resonances + rests
-                if res.high_power_peaks is not None
-            ],
-            key=lambda pg: pg.x,
-        )
-    ):
+    for i, resonance in enumerate(sorted(resonances + rests, key=lambda res: res.x)):
         xs = []
         ys = []
 
-        for peak in high_power_peaks.peaks:
-            xs.append(data['data'][0]['x'][peak[0]])
-            ys.append(data['data'][0]['y'][peak[1]])
+        if resonance.high_power_peaks:
+            for peak in resonance.high_power_peaks.peaks:
+                xs.append(data['data'][0]['x'][peak[0]])
+                ys.append(data['data'][0]['y'][peak[1]])
 
-        fig.add_trace(
-            go.Scatter(
-                x=xs,
-                y=ys,
-                mode='markers',
-                marker=dict(
-                    color=px.colors.qualitative.Plotly[
-                        i % len(px.colors.qualitative.Plotly)
-                    ],
-                    size=8,
-                    symbol='x',
-                ),
-                showlegend=False,
+            fig.add_trace(
+                go.Scatter(
+                    x=xs,
+                    y=ys,
+                    mode='markers',
+                    marker=dict(
+                        color=px.colors.qualitative.Plotly[
+                            i % len(px.colors.qualitative.Plotly)
+                        ],
+                        size=8,
+                        symbol='x',
+                    ),
+                    showlegend=False,
+                )
             )
-        )
+
+        if resonance.low_power_peak:
+            fig.add_trace(
+                go.Scatter(
+                    x=[data['data'][0]['x'][resonance.low_power_peak.x]],
+                    y=[data['data'][0]['y'][resonance.low_power_peak.y]],
+                    mode='markers',
+                    marker=dict(
+                        color=px.colors.qualitative.Plotly[
+                            i % len(px.colors.qualitative.Plotly)
+                        ],
+                        size=8,
+                        symbol='circle',
+                    ),
+                    showlegend=False,
+                )
+            )
 
     for resonance in resonances:
         fig.add_vline(
