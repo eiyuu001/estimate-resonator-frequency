@@ -41,7 +41,7 @@
 
 ### 高周波強度による境界推定
 
-- strength_limit: ベアシフト境界として認める高周波強度の最大値
+- `strength_limit`: ベアシフト境界として認める高周波強度の最大値
 
 ```
   "bare_shift_boundary_estimator": {
@@ -69,4 +69,66 @@
     }
   },
   ...
+```
+
+## インストール
+
+```
+uv sync
+```
+
+## 実行例
+
+```
+cp examples/config/config_64q_example.json ./config_64q.json
+uv run src/main.py -c config.json -f /path/to/64q_data.json --mux 0
+```
+
+main.pyの出力オプション
+
+- `--image-dir <image_dir>`: <image_dir>に実験画像・マーク済み画像・ベアシフト境界分析画像を出力する.
+
+## 出力
+
+- `resonators`: 共振器情報
+- `resonators.[].mux`: 共振器が属するMUX
+- `resonators.[].qubit`: 共振器に対応するqubitのインデックス
+- `resonators.[].frequency`: 共振器の共振周波数(GHz)
+- `bare_shift_boundary`: ベアシフト境界情報
+- `bare_shift_boundary.high_power_max`: 高パワー領域の上限(dB)
+- `bare_shift_boundary.high_power_min`: 高パワー領域の下限(dB)
+- `bare_shift_boundary.low_power_max`: 低パワー領域の上限(dB) ※現バージョンでは低パワー領域の上限と下限には同じ値が入る
+- `bare_shift_boundary.low_power_min`: 低パワー領域の下限(dB) ※現バージョンでは低パワー領域の上限と下限には同じ値が入る
+
+```
+{
+  "resonators": [
+    {
+      "mux": 20,
+      "qubit": 80,
+      "frequency": 6.3079999999999385
+    },
+    {
+      "mux": 20,
+      "qubit": 81,
+      "frequency": 6.583999999999908
+    },
+    {
+      "mux": 20,
+      "qubit": 82,
+      "frequency": 6.4539999999999225
+    },
+    {
+      "mux": 20,
+      "qubit": 83,
+      "frequency": 6.175999999999953
+    }
+  ],
+  "bare_shift_boundary": {
+    "high_power_max": 0.0,
+    "high_power_min": -5.0,
+    "low_power_max": -10.0,
+    "low_power_min": -10.0
+  }
+}
 ```
