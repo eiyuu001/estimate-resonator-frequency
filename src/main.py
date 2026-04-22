@@ -130,9 +130,13 @@ def build_result(
     args: MainArgs,
     data: dict[str, Any],
     resonances: list[Resonance],
-) -> list[dict[str, Any]]:
+    boundary: BareShiftBoundary,
+) -> dict[str, Any]:
+
+    result = {}
+
     if len(resonances) < 4:
-        return [
+        result['resonators'] = [
             dict(
                 mux=args.mux,
                 qubit=None,
@@ -140,33 +144,42 @@ def build_result(
             )
             for resonance in resonances
         ]
+    else:
+        resonances = [resonances[1], resonances[3], resonances[2], resonances[0]]
+        result['resonators'] = [
+            dict(
+                mux=args.mux,
+                qubit=args.mux * 4 + i,
+                frequency=data['data'][0]['x'][resonance.x],
+            )
+            for i, resonance in enumerate(resonances)
+        ]
 
-    resonances = [resonances[1], resonances[3], resonances[2], resonances[0]]
-    return [
-        dict(
-            mux=args.mux,
-            qubit=args.mux * 4 + i,
-            frequency=data['data'][0]['x'][resonance.x],
-        )
-        for i, resonance in enumerate(resonances)
-    ]
+    result['bare_shift_boundary'] = {
+        'high_power_max': boundary.high_power_max,
+        'high_power_min': boundary.high_power_min,
+        'low_power_max': boundary.low_power,  # TODO: low-power is currently a single point; will become a range
+        'low_power_min': boundary.low_power,
+    }
+
+    return result
 
 
-def build_debug_output(boundary: BareShiftBoundary) -> dict[str, Any]:
-    return {'bare_shift_boundary': boundary.__dict__}
+def build_debug_output() -> dict[str, Any]:
+    return {}
 
 
 def print_result(
-    result: list[dict[str, Any]],
+    result: dict[str, Any],
     debug: bool,
     debug_output: dict[str, Any] | None = None,
 ):
     if debug:
         if debug_output is None:
             debug_output = {}
-        print(json.dumps({'result': result, 'debug': debug_output}))
-    else:
-        print(json.dumps(result))
+        result = result | {'debug': debug_output}
+
+    print(json.dumps(result))
 
 
 def maybe_output_spectroscopy_images(
@@ -195,8 +208,8 @@ def main():
         data, conf, bare_shift_artifact_prefix=output_paths.bare_shift_artifact_prefix
     )
     resonances, rests = estimate_resonances(data, conf, boundary)
-    result = build_result(args, data, resonances)
-    debug_output = build_debug_output(boundary)
+    result = build_result(args, data, resonances, boundary)
+    debug_output = build_debug_output()
     print_result(result, args.debug, debug_output)
     maybe_output_spectroscopy_images(
         data, resonances, rests, output_paths.spectroscopy_image_prefix, args.plot
