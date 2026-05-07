@@ -34,9 +34,18 @@ class PeakGroup:
 
 
 class Resonance:
-    def __init__(self, high_power_peaks: PeakGroup | None, low_power_peak: Peak | None):
+    def __init__(
+        self,
+        high_power_peaks: PeakGroup | None,
+        low_power_peak: Peak | None,
+        complementary_peaks: list[Peak] | None = None,
+    ):
+        if complementary_peaks is None:
+            complementary_peaks = []
+
         self.high_power_peaks = high_power_peaks
         self.low_power_peak = low_power_peak
+        self.complementary_peaks = complementary_peaks
 
     @property
     def x(self):
@@ -81,6 +90,8 @@ class Resonance:
 
         if self.high_power_peaks:
             peaks.extend(self.high_power_peaks.peaks)
+
+        peaks.extend(self.complementary_peaks)
 
         if self.low_power_peak:
             peaks.append(self.low_power_peak)
@@ -275,6 +286,91 @@ def detect_high_power_peak_groups(
     return group_peaks(high_power_peaks, **group_peaks_conf)
 
 
+def detect_complementary_peaks(
+    ys: Sequence[float],
+    zs: Sequence[Sequence[float]],
+    high_power_min: float | None,
+    high_power_max: float | None,
+    num_resonators: int,
+    find_peaks_conf: dict,
+    resonances: Sequence[Resonance],
+) -> dict[int, Sequence[Peak]]:
+    if high_power_min is None or high_power_max is None:
+        return {}
+
+    y_idx_high_min = arg_closest(ys, high_power_min)
+    y_idx_high_max = arg_closest(ys, high_power_max)
+
+    if y_idx_high_min > y_idx_high_max:
+        y_idx_high_min, y_idx_high_max = y_idx_high_max, y_idx_high_min
+
+    known_peaks = list(itertools.chain.from_iterable(res.peaks for res in resonances))
+
+    def is_known_peak(x_idx: int, y_idx: int):
+        return any(
+            x_idx == known_peak.x and y_idx == known_peak.y
+            for known_peak in known_peaks
+        )
+
+    peaks: dict[int, Sequence[Peak]] = {}
+
+    for y_idx in range(y_idx_high_min, y_idx_high_max + 1):
+        _xs, prominences = find_peaks(
+            trace=zs[y_idx], num_resonators=num_resonators * 2, **find_peaks_conf
+        )
+        peaks[y_idx] = [
+            Peak(peak_idx, y_idx, prominence)
+            for peak_idx, prominence in zip(_xs, prominences)
+            if not is_known_peak(peak_idx, y_idx)
+        ]
+
+    return peaks
+
+
+def complement_peaks(
+    len_ys: int, complementary_peaks: dict[int, Sequence[Peak]], resonance: Resonance
+):
+    if resonance.high_power_peaks and resonance.low_power_peak:
+        peak0 = resonance.high_power_peaks.bottom
+        peak1 = resonance.low_power_peak
+    elif resonance.high_power_peaks:
+        peak0 = resonance.high_power_peaks.bottom
+        peak1 = resonance.high_power_peaks.bottom
+    elif resonance.low_power_peak:
+        peak0 = Peak(x=resonance.low_power_peak.x, y=len_ys, prominence=0)
+        peak1 = resonance.low_power_peak
+    else:
+        raise Exception
+
+    x_min = min(peak0.x, peak1.x)
+    x_max = max(peak0.x, peak1.x)
+    y_min = min(peak0.y, peak1.y) + 1
+    y_max = max(peak0.y, peak1.y) - 1
+
+    if y_min > y_max:
+        return resonance
+
+    target_peaks: list[Peak] = []
+    for y_idx in range(y_min, y_max + 1):
+        if y_idx not in complementary_peaks:
+            continue
+
+        candidates = [
+            peak for peak in complementary_peaks[y_idx] if x_min <= peak.x <= x_max
+        ]
+
+        if not candidates:
+            continue
+
+        target_peaks.append(sorted(candidates, key=lambda peak: peak.x)[0])
+
+    return Resonance(
+        high_power_peaks=resonance.high_power_peaks,
+        low_power_peak=resonance.low_power_peak,
+        complementary_peaks=target_peaks,
+    )
+
+
 def estimate_resonator_frequency(
     ys: Sequence[float],
     zs: Sequence[Sequence[float]],
@@ -332,5 +428,21 @@ def estimate_resonator_frequency(
 
     resonances = sorted(resonances, key=attrgetter("x"))
     rests = sorted(rests, key=attrgetter("x"))
+
+    complementary_peaks = detect_complementary_peaks(
+        ys,
+        zs,
+        high_power_min,
+        high_power_max,
+        num_resonators,
+        find_peaks_conf_low,
+        resonances + rests,
+    )
+
+    def _complement_peaks(resonance: Resonance):
+        return complement_peaks(len(ys), complementary_peaks, resonance)
+
+    resonances = list(map(_complement_peaks, resonances))
+    rests = list(map(_complement_peaks, rests))
 
     return resonances, rests
