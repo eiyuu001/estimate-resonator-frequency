@@ -2,13 +2,13 @@ import argparse
 import functools
 import json
 import os
+import multiprocessing
 import pathlib
 import shutil
 import subprocess
 from dataclasses import dataclass
 from datetime import datetime
 from models import ResonatorSpectroscopyFile
-from multiprocessing import Pool
 from typing import Any
 
 
@@ -25,6 +25,7 @@ class MainArgs:
     dst_dir: str
     num_pool: int
     main_script: str
+    write_images: bool
 
 
 @dataclass(frozen=True)
@@ -43,6 +44,7 @@ class Config:
 
 @dataclass(frozen=True)
 class DstDir:
+    base_dir: str
     work_dir: str
     image_dir: str
     path_batch: str
@@ -74,6 +76,7 @@ class DstDir:
         path_result = os.path.join(work_dir, 'result.json')
 
         return cls(
+            base_dir=dir_path,
             work_dir=work_dir,
             image_dir=image_dir,
             path_batch=path_batch,
@@ -91,6 +94,7 @@ def parse_args():
     parser.add_argument('--dst-dir')
     parser.add_argument('--pool', type=int, default=4)
     parser.add_argument('--main-script', default=MAIN_SCRIPT)
+    parser.add_argument('--write-images', action='store_true')
     args = parser.parse_args()
     return MainArgs(
         batch_file=args.batch_file,
@@ -98,6 +102,7 @@ def parse_args():
         dst_dir=args.dst_dir,
         num_pool=args.pool,
         main_script=args.main_script,
+        write_images=args.write_images,
     )
 
 
@@ -124,6 +129,7 @@ def write_batch_context(dst_dir: DstDir, batch_file: str, conf_file: str, conf: 
 def run(
     main_script: str,
     dst_dir: DstDir,
+    write_images: bool,
     case: ResonatorSpectroscopyFile,
 ) -> dict[str, Any]:
     print(f'processing: {case.z_digest}')
@@ -137,12 +143,19 @@ def run(
         case.src_path,
         '--mux',
         case.mux,
-        '--image-dir',
-        dst_dir.image_dir,
-        '--image-prefix',
-        f'{case.z_digest}_',
         '--debug',
     ]
+
+    if write_images:
+        commands.extend(
+            [
+                '--image-dir',
+                dst_dir.image_dir,
+                '--image-prefix',
+                f'{case.z_digest}_',
+            ]
+        )
+
     result: subprocess.CompletedProcess = subprocess.run(
         commands,
         capture_output=True,
@@ -158,14 +171,17 @@ def batch(
     main_script: str,
     dst_dir: DstDir,
     cases: list[ResonatorSpectroscopyFile],
+    *,
+    write_images: bool = False,
 ) -> list[dict[str, Any]]:
     run_binded = functools.partial(
         run,
         main_script,
         dst_dir,
+        write_images,
     )
 
-    with Pool(num_pool) as p:
+    with multiprocessing.get_context('spawn').Pool(num_pool) as p:
         results = p.map(run_binded, cases)
 
     return results
@@ -183,6 +199,18 @@ def write_batch_result(dst_dir: DstDir, batch_result: dict[str, Any]):
         json.dump(batch_result, f, sort_keys=True)
 
 
+def create_latest_symlink(dst_dir: DstDir):
+    path_latest = os.path.join(dst_dir.base_dir, 'latest')
+
+    if os.path.exists(path_latest):
+        os.unlink(path_latest)
+
+    os.symlink(
+        pathlib.Path(dst_dir.work_dir).resolve(),
+        os.path.join(dst_dir.base_dir, 'latest'),
+    )
+
+
 def main():
     args = parse_args()
 
@@ -191,9 +219,16 @@ def main():
     write_batch_context(dst_dir, args.batch_file, args.conf_file, conf)
 
     cases = build_cases(args.batch_file)
-    results = batch(args.num_pool, args.main_script, dst_dir, cases)
+    results = batch(
+        args.num_pool,
+        args.main_script,
+        dst_dir,
+        cases,
+        write_images=args.write_images,
+    )
     batch_result = build_batch_result(cases, results)
     write_batch_result(dst_dir, batch_result)
+    create_latest_symlink(dst_dir)
 
 
 if __name__ == '__main__':
