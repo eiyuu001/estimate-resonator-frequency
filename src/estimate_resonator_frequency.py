@@ -8,6 +8,7 @@ from typing import (
 from scipy.signal import find_peaks as _find_peaks
 from scipy.ndimage import convolve1d
 import numpy as np
+from util import arg_closest
 
 
 class Peak(NamedTuple):
@@ -248,10 +249,6 @@ def group_resonances(resonances: Sequence[Resonance], x_distance_max: int):
         groups.append(group)
 
     return groups
-
-
-def arg_closest(arr, v):
-    return int(np.argmin([abs(x - v) for x in arr]))
 
 
 def detect_high_power_peak_groups(

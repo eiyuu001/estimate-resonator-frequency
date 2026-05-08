@@ -9,8 +9,14 @@ from bare_shift import (
 )
 from config import create_bare_shift_boundary_estimator
 from estimate_resonator_frequency import Resonance, estimate_resonator_frequency
+from local_bare_shift import estimate_local_bare_shift_boundary
+from minimum_usable_power import CorrelationBasedMinimumUsablePowerEstimator
 from plot import output_images
+from util import arg_closest
 from remove_false_spike import remove_false_spike
+
+
+QUBIT_ID_ORDER = [1, 3, 2, 0]
 
 
 @dataclass(frozen=True)
@@ -27,6 +33,7 @@ class MainArgs:
 @dataclass(frozen=True)
 class OutputPaths:
     bare_shift_artifact_prefix: str | None
+    minimum_usable_power_artifact_prefix: str | None
     spectroscopy_image_prefix: str | None
 
 
@@ -67,6 +74,7 @@ def build_output_paths(
     if image_dir is None:
         return OutputPaths(
             bare_shift_artifact_prefix=None,
+            minimum_usable_power_artifact_prefix=None,
             spectroscopy_image_prefix=None,
         )
 
@@ -77,6 +85,9 @@ def build_output_paths(
 
     return OutputPaths(
         bare_shift_artifact_prefix=os.path.join(image_dir, f'{image_prefix}{mux}_2_'),
+        minimum_usable_power_artifact_prefix=os.path.join(
+            image_dir, f'{image_prefix}{mux}_3_'
+        ),
         spectroscopy_image_prefix=os.path.join(image_dir, f'{image_prefix}{mux}_'),
     )
 
@@ -126,11 +137,75 @@ def estimate_resonances(
     )
 
 
+def estimate_local_bare_shift_boundaries(
+    data: dict[str, Any],
+    resonances: list[Resonance],
+):
+    local_boundaries = [
+        estimate_local_bare_shift_boundary(data['data'][0]['y'], resonance)
+        for resonance in resonances
+    ]
+    return local_boundaries
+
+
+def estimate_minimum_usable_power(
+    data: dict[str, Any],
+    conf: dict[str, Any],
+    boundary: BareShiftBoundary,
+    *,
+    minimum_usable_power_artifact_prefix: str | None = None,
+) -> float:
+    y_idx_base = arg_closest(data['data'][0]['y'], boundary.low_power)
+    estimator = CorrelationBasedMinimumUsablePowerEstimator(
+        coef_min=conf['minimum_usable_power']['correlation_coefficient_min'],
+    )
+    y_idx_min = estimator.estimate_idx(
+        zs=data['data'][0]['z'],
+        idx_base=y_idx_base,
+        artifact_prefix=minimum_usable_power_artifact_prefix,
+    )
+
+    return data['data'][0]['y'][y_idx_min]
+
+
+def estimate_optimal_powers(
+    data: dict[str, Any],
+    local_boundaries: list[BareShiftBoundary],
+    minimum_usable_power: float,
+):
+    y_idx_0 = arg_closest(data['data'][0]['y'], minimum_usable_power)
+
+    def compute_mid(y: float) -> float:
+        y_idx_1 = arg_closest(data['data'][0]['y'], y)
+        y_idx_mid = (y_idx_0 + y_idx_1) // 2
+        return data['data'][0]['y'][y_idx_mid]
+
+    return [compute_mid(boundary.low_power) for boundary in local_boundaries]
+
+
+def build_bare_shift_boundary_result(
+    boundary: BareShiftBoundary,
+    minimum_usable_power: float,
+):
+    return {
+        'high_power_max': boundary.high_power_max,
+        'high_power_min': boundary.high_power_min,
+        'low_power_max': boundary.low_power,
+        'low_power_min': minimum_usable_power,
+    }
+
+
+def reorder_by_qubit_id(arr):
+    return [arr[i] for i in QUBIT_ID_ORDER]
+
+
 def build_result(
     args: MainArgs,
     data: dict[str, Any],
     resonances: list[Resonance],
-    boundary: BareShiftBoundary,
+    local_boundaries: list[BareShiftBoundary],
+    minimum_usable_power: float,
+    optimal_powers: list[float],
 ) -> dict[str, Any]:
 
     result = {}
@@ -141,26 +216,33 @@ def build_result(
                 mux=args.mux,
                 qubit=None,
                 frequency=data['data'][0]['x'][resonance.x],
+                bare_shift_boundary=build_bare_shift_boundary_result(
+                    local_boundary, minimum_usable_power
+                ),
+                optimal_power=optimal_power,
             )
-            for resonance in resonances
+            for resonance, local_boundary, optimal_power in zip(
+                resonances, local_boundaries, optimal_powers
+            )
         ]
     else:
-        resonances = [resonances[1], resonances[3], resonances[2], resonances[0]]
+        resonances = reorder_by_qubit_id(resonances)
+        local_boundaries = reorder_by_qubit_id(local_boundaries)
+        optimal_powers = reorder_by_qubit_id(optimal_powers)
         result['resonators'] = [
             dict(
                 mux=args.mux,
                 qubit=args.mux * 4 + i,
                 frequency=data['data'][0]['x'][resonance.x],
+                bare_shift_boundary=build_bare_shift_boundary_result(
+                    local_boundary, minimum_usable_power
+                ),
+                optimal_power=optimal_power,
             )
-            for i, resonance in enumerate(resonances)
+            for i, (resonance, local_boundary, optimal_power) in enumerate(
+                zip(resonances, local_boundaries, optimal_powers)
+            )
         ]
-
-    result['bare_shift_boundary'] = {
-        'high_power_max': boundary.high_power_max,
-        'high_power_min': boundary.high_power_min,
-        'low_power_max': boundary.low_power,  # TODO: low-power is currently a single point; will become a range
-        'low_power_min': boundary.low_power,
-    }
 
     return result
 
@@ -186,16 +268,22 @@ def maybe_output_spectroscopy_images(
     data: dict[str, Any],
     resonances: list[Resonance],
     rests: list[Resonance],
+    local_boundaries,
+    minimum_usable_power: float,
     image_prefix: str | None,
     plot: bool,
+    debug: bool,
 ) -> None:
     if image_prefix or plot:
         output_images(
             data,
             resonances,
             rests,
+            local_boundaries,
+            minimum_usable_power,
             image_prefix,
             plot,
+            debug,
         )
 
 
@@ -208,11 +296,31 @@ def main():
         data, conf, bare_shift_artifact_prefix=output_paths.bare_shift_artifact_prefix
     )
     resonances, rests = estimate_resonances(data, conf, boundary)
-    result = build_result(args, data, resonances, boundary)
+    local_boundaries = estimate_local_bare_shift_boundaries(data, resonances + rests)
+    minimum_usable_power = estimate_minimum_usable_power(
+        data,
+        conf,
+        boundary,
+        minimum_usable_power_artifact_prefix=output_paths.minimum_usable_power_artifact_prefix,
+    )
+    optimal_powers = estimate_optimal_powers(
+        data, local_boundaries, minimum_usable_power
+    )
+
+    result = build_result(
+        args, data, resonances, local_boundaries, minimum_usable_power, optimal_powers
+    )
     debug_output = build_debug_output()
     print_result(result, args.debug, debug_output)
     maybe_output_spectroscopy_images(
-        data, resonances, rests, output_paths.spectroscopy_image_prefix, args.plot
+        data,
+        resonances,
+        rests,
+        local_boundaries,
+        minimum_usable_power,
+        output_paths.spectroscopy_image_prefix,
+        args.plot,
+        args.debug,
     )
 
 

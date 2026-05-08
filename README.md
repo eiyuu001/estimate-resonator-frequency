@@ -8,6 +8,8 @@
 6. 対応づけられた応答それぞれについて, 近くにある応答同士をグループ化する.
 7. 各応答グループについて, 最大スコアの応答のみを残す.
 8. 残った応答のスコア上位`num_resonators`個を真の応答とみなす.
+9. 各応答について, 2で推定したベアシフト境界と応答を構成するピークの座標から, 応答個別のベアシフト境界を推定する.
+10. パワー帯毎の相関係数から使用可能なパワー下限を推定する. 2で推定した境界を起点とし, 隣接パワー帯同士の相関係数が `minimum_usable_power.correlation_coefficient_min` を下回らない下限のパワーを採用する.
 
 ## 応答スコア
 
@@ -22,6 +24,8 @@
 
 - `remove_false_spike`: 測定器由来の偽応答の除外に使うパラメータ. 除外範囲の配列
 - `bare_shift_boundary_estimator`: ベアシフト境界検出の設定. 詳しくは[ベアシフト境界設定](#ベアシフト境界設定)を参照.
+- `minimum_usable_power`: 使用可能パワー下限の推定に使うパラメータ.
+- `minimum_usable_power.correlation_coefficient_min`: 隣接パワー帯同士の相関係数の下限. これを下回った時, 使用不可(ノイズが多すぎる)と判断する.
 - `estimate_resonator_frequency`: 応答の検出に使うパラメータ. 以下それぞれのパラメータについて解説
 - `num_resonators`: 検出する共振器の数
 - `find_peaks_conf_(high/low)`: (高/低)パワー帯のピーク検出に使うパラメータ
@@ -94,41 +98,29 @@ main.pyの出力オプション
 - `resonators.[].mux`: 共振器が属するMUX
 - `resonators.[].qubit`: 共振器に対応するqubitのインデックス
 - `resonators.[].frequency`: 共振器の共振周波数(GHz)
-- `bare_shift_boundary`: ベアシフト境界情報
-- `bare_shift_boundary.high_power_max`: 高パワー領域の上限(dB)
-- `bare_shift_boundary.high_power_min`: 高パワー領域の下限(dB)
-- `bare_shift_boundary.low_power_max`: 低パワー領域の上限(dB) ※現バージョンでは低パワー領域の上限と下限には同じ値が入る
-- `bare_shift_boundary.low_power_min`: 低パワー領域の下限(dB) ※現バージョンでは低パワー領域の上限と下限には同じ値が入る
+- `resonators.[].bare_shift_boundary`: ベアシフト境界情報
+- `resonators.[].bare_shift_boundary.high_power_max`: 高パワー領域の上限(dB)
+- `resonators.[].bare_shift_boundary.high_power_min`: 高パワー領域の下限(dB)
+- `resonators.[].bare_shift_boundary.low_power_max`: 低パワー領域の上限(dB)
+- `resonators.[].bare_shift_boundary.low_power_min`: 低パワー領域の下限(dB)
+- `resonators.[].optimal_power`: 推奨パワー(dB)
 
 ```
 {
   "resonators": [
     {
-      "mux": 20,
-      "qubit": 80,
-      "frequency": 6.3079999999999385
+      "mux": 11,
+      "qubit": 44,
+      "frequency": 6.239999999999946,
+      "bare_shift_boundary": {
+        "high_power_max": 0.0,
+        "high_power_min": -20.0,
+        "low_power_max": -25.0,
+        "low_power_min": -40.0
+      },
+      "optimal_power": -35.0
     },
-    {
-      "mux": 20,
-      "qubit": 81,
-      "frequency": 6.583999999999908
-    },
-    {
-      "mux": 20,
-      "qubit": 82,
-      "frequency": 6.4539999999999225
-    },
-    {
-      "mux": 20,
-      "qubit": 83,
-      "frequency": 6.175999999999953
-    }
-  ],
-  "bare_shift_boundary": {
-    "high_power_max": 0.0,
-    "high_power_min": -5.0,
-    "low_power_max": -10.0,
-    "low_power_min": -10.0
-  }
+    ...
+  ]
 }
 ```

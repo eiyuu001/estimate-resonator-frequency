@@ -9,6 +9,9 @@
       "strength_limit": 4.0
     }
   },
+  "minimum_usable_power": {
+    "correlation_coefficient_min": 0.9
+  },
   "estimate_resonator_frequency": {
     "num_resonators": 4,
     "find_peaks_conf_high": {
